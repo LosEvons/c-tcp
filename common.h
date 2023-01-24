@@ -1,14 +1,5 @@
 #ifndef _COMMON_H_
 #define _COMMON_H_
-/*
-#include <sys/types.h>
-#include <signal.h>
-#include <stdarg.h>
-#include <fcntl.h>
-#include <sys/time.h>
-#include <sys/ioctl.h>
-#include <netdb.h>
-*/
 
 #include <stdio.h>
 #include <stdlib.h>
