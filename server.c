@@ -30,11 +30,13 @@ void * thread_process_connection(void *arg);
 int setup_server(short port, int backlog);
 int accept_new_connection(int server_socket);
 void add_connection_to_queue(int client_socket);
+void setHttpHeader(char httpHeader[]);
+
+char httpHeader[8000] = "HTTP/1.1 200 OK\r\n\n";
 
 int main(int argc, char **argv){
-
 	int server_socket = setup_server(SERVER_PORT, SERVER_BACKLOG);
-	
+
 	fd_set current_sockets, ready_sockets; // a set of file descriptors
 	// Init current set
 	FD_ZERO(&current_sockets);
@@ -44,6 +46,8 @@ int main(int argc, char **argv){
 	while (true){
 		// temp copy, since select is destructive
 		ready_sockets = current_sockets;
+
+		printf("Waiting for connection...\n");
 
 		if (select(FD_SETSIZE, &ready_sockets, NULL, NULL, NULL) < 0){
 			perror("Select error.");
@@ -92,6 +96,8 @@ int setup_server(short port, int backlog){
 	// Set socket to listen
 	check(listen(server_socket, SERVER_BACKLOG),
 		"Listen failed.");
+
+	setHttpHeader(httpHeader);
 
 	return server_socket;
 }
@@ -155,28 +161,32 @@ void * handle_connection(void* p_client_socket) {
 	printf("REQUEST: %s\n", buffer);
 	fflush(stdout);
 
+
+
 	// Check validity
 	if (realpath(buffer, actualpath) == NULL){
 		printf("ERROR(bad path): %s\n", buffer);
+		send(client_socket, httpHeader, sizeof(httpHeader), 0);
 		close(client_socket);
 		return NULL;
-	}
+	} else {
+		// read file and send contents to client
+		FILE *fp = fopen(actualpath, "r");
+		if (fp == NULL){
+			printf("ERROR(open): %s}n", buffer);
+			close(client_socket);
+			return NULL;
+		}
 
-	// read file and send contents to client
-	FILE *fp = fopen(actualpath, "r");
-	if (fp == NULL){
-		printf("ERROR(open): %s}n", buffer);
-		close(client_socket);
-		return NULL;
-	}
+		while ((bytes_read = fread(buffer, 1, BUFSIZE, fp)) > 0){
+			printf("sending %zu bytes\n", bytes_read);
+			write(client_socket, buffer, bytes_read);
+		}
 
-	while ((bytes_read = fread(buffer, 1, BUFSIZE, fp)) > 0){
-		printf("sending %zu bytes\n", bytes_read);
-		write(client_socket, buffer, bytes_read);
+		fclose(fp);
 	}
 
 	close(client_socket);
-	fclose(fp);
 	printf("Closing connection.\n");
 
 	return NULL;
@@ -188,4 +198,16 @@ int check(int exp, const char *msg){
 		exit(1);
 	}
 	return exp;
+}
+
+void setHttpHeader(char httpHeader[]){
+	FILE *htmlData = fopen("index.html", "r");
+
+	char line[100];
+	char responseData[8000];
+	while (fgets(line, 100, htmlData) != 0){
+		strcat(responseData, line);
+	}
+
+	strcat(httpHeader, responseData);
 }
