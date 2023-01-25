@@ -16,9 +16,11 @@
 #define SERVER_BACKLOG		100
 #define THREAD_POOL_SIZE	20
 
-pthread_t thread_pool[THREAD_POOL_SIZE];
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-
+pthread_t thread_pool[THREAD_POOL_SIZE]; // Initialize threads
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER; // Initialize mutex
+pthread_cond_t condition_var = PTHREAD_COND_INITIALIZER; // Initialize condition to stop
+														//	threads in loop when asking for connection
+														//	(limits server CPU usage)
 typedef struct sockaddr_in SA_IN;
 typedef struct sockaddr SA;
 
@@ -68,15 +70,9 @@ int main(int argc, char **argv){
 		*pclient = client_socket;
 		pthread_mutex_lock(&mutex);
 		enqueue(pclient);
+		pthread_cond_signal(&condition_var);
 		pthread_mutex_unlock(&mutex);
 
-
-		/*
-		pthread_t t;
-		int *pclient = malloc(sizeof(int)); // client_socket needs to be a pointer
-		*pclient =  client_socket;			// to get passed to pthread:handle_connection
-		pthread_create(&t, NULL, handle_connection, pclient);
-		*/
 	}
 
 	return 0;
@@ -94,7 +90,12 @@ void * thread_function(void *arg){
 	while (true){
 		int *pclient;
 		pthread_mutex_lock(&mutex);
-		pclient = dequeue();
+		// If no work in queue, set thread to wait
+		if ((pclient = dequeue()) == NULL){
+			pthread_cond_wait(&condition_var, &mutex);
+			// Try again
+			pclient = dequeue();
+		}
 		pthread_mutex_unlock(&mutex);
 		
 		if (pclient != NULL) {
