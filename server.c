@@ -26,14 +26,38 @@ typedef struct sockaddr SA;
 
 void * handle_connection(void *client_socket);
 int check(int ext, const char *msg);
-void * thread_function(void *arg);
+void * thread_process_connection(void *arg);
+int setup_server(short port, int backlog);
+int accept_new_connection(int server_socket);
+void add_connection_to_queue(int client_socket);
 
 int main(int argc, char **argv){
-	int server_socket, client_socket, addr_size;
+
+	int server_socket = setup_server(SERVER_PORT, SERVER_BACKLOG);
+
+	while (true){
+		printf("Waiting for connections...\n");
+
+		// Accept connections
+		
+		int client_socket = accept_new_connection(server_socket);
+
+		printf("Connected!\n");
+
+		// Process connections
+
+		add_connection_to_queue(client_socket);
+	}
+
+	return 0;
+}
+
+int setup_server(short port, int backlog){
+	int server_socket;
 	SA_IN server_addr, client_addr;
 
 	for (int i = 0; i < THREAD_POOL_SIZE; i++){
-		pthread_create(&thread_pool[i], NULL, thread_function, NULL);
+		pthread_create(&thread_pool[i], NULL, thread_process_connection, NULL);
 	}
 
 	// Create a socket
@@ -53,40 +77,31 @@ int main(int argc, char **argv){
 	check(listen(server_socket, SERVER_BACKLOG),
 		"Listen failed.");
 
-	while (true){
-		printf("Waiting for connections...\n");
-		// Wait for connection
-		addr_size = sizeof(SA_IN);
-		check(client_socket =
-			accept(server_socket, (SA*)&client_addr, (socklen_t*)&addr_size),
-			"Accept failed.");
-		printf("Connected!\n");
-
-		// Process connections
-
-		// Store connections in queue (linked list)
-		// so threads can access and process them
-		int *pclient = malloc(sizeof(int));
-		*pclient = client_socket;
-		pthread_mutex_lock(&mutex);
-		enqueue(pclient);
-		pthread_cond_signal(&condition_var);
-		pthread_mutex_unlock(&mutex);
-
-	}
-
-	return 0;
+	return server_socket;
 }
 
-int check(int exp, const char *msg){
-	if (exp == SOCKETERROR) {
-		perror(msg);
-		exit(1);
-	}
-	return exp;
+int accept_new_connection(int server_socket){
+	int addr_size = sizeof(SA_IN);
+	int client_socket;
+	SA_IN client_addr;
+	check(client_socket = 
+		accept(server_socket,
+			(SA*)&client_addr,
+			(socklen_t*)&addr_size),
+		"Accept failed.");
+	return client_socket;
 }
 
-void * thread_function(void *arg){
+void add_connection_to_queue(int client_socket){
+	int *pclient = malloc(sizeof(int));
+	*pclient = client_socket;
+	pthread_mutex_lock(&mutex);
+	enqueue(pclient);
+	pthread_cond_signal(&condition_var);
+	pthread_mutex_unlock(&mutex);
+}
+
+void * thread_process_connection(void *arg){
 	while (true){
 		int *pclient;
 		pthread_mutex_lock(&mutex);
@@ -149,4 +164,12 @@ void * handle_connection(void* p_client_socket) {
 	printf("Closing connection.\n");
 
 	return NULL;
+}
+
+int check(int exp, const char *msg){
+	if (exp == SOCKETERROR) {
+		perror(msg);
+		exit(1);
+	}
+	return exp;
 }
