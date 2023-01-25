@@ -35,21 +35,42 @@ int main(int argc, char **argv){
 
 	int server_socket = setup_server(SERVER_PORT, SERVER_BACKLOG);
 
+	int max_socket_so_far = 0; // Limit how many sockets to check. (slows down with time and number of connections)
+	fd_set current_sockets, ready_sockets; // a set of file descriptors
+	// Init current set
+	FD_ZERO(&current_sockets);
+	FD_SET(server_socket, &current_sockets);
+	max_socket_so_far = server_socket;
+
+
 	while (true){
-		printf("Waiting for connections...\n");
+		// temp copy, since select is destructive
+		ready_sockets = current_sockets;
 
-		// Accept connections
-		
-		int client_socket = accept_new_connection(server_socket);
+		if (select(max_socket_so_far, &ready_sockets, NULL, NULL, NULL) < 0){
+			perror("Select error.");
+			exit(EXIT_FAILURE);
+		}
 
-		printf("Connected!\n");
-
-		// Process connections
-
-		add_connection_to_queue(client_socket);
+		for (int i=0; i < max_socket_so_far; i++){ 	// Go through all sockets
+			if (FD_ISSET(i, &ready_sockets)){	// ^
+				if (i == server_socket){
+					// Found new connection
+					int client_socket = accept_new_connection(server_socket);
+					FD_SET(client_socket, &current_sockets);
+					if (client_socket > max_socket_so_far){
+						max_socket_so_far = client_socket;
+					}
+				} else{
+					// Process connections
+					add_connection_to_queue(i);
+					FD_CLR(i, &current_sockets);
+				}
+			}
+		}
 	}
 
-	return 0;
+	return EXIT_SUCCESS;
 }
 
 int setup_server(short port, int backlog){
