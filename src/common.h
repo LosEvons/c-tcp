@@ -1,6 +1,6 @@
 #ifndef COMMON_H_
 #define COMMON_H_
-
+#include <stdbool.h>
 #include "error.h"
 
 #define SERVER_PORT			18000
