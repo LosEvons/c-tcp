@@ -1,15 +1,27 @@
 CC=clang
 CFLAGS=-g -Wall
-BINS=server
-OBJS=server.o myqueue.o error.o
+SRC=src
+OBJ=obj
+BINDIR=bin
+SRCS=$(wildcard $(SRC)/*c) 
+OBJS=$(patsubst $(SRC)/%.c, $(OBJ)/%.o, $(SRCS))
 
-all: $(BINS)
+BIN=$(BINDIR)/server
 
-%.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $^
+all: $(BIN)
 
-server: $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $^
+release: CFLAGS=-Wall -O2 -DNDEBUG
+release: clean
+release: $(BIN)
+
+$(BIN): $(OBJS)
+	$(CC) $(CFLAGS) $^ -o $@
+
+$(OBJ)/%.o: $(SRC)/%.c
+	$(CC) $(CFLAGS) -c $^ -o $@
+
+run:
+	$(BIN)
 
 clean:
-	rm -rf rm*.o *.dSYM $(BINS)
+	rm -rf bin/* obj/*

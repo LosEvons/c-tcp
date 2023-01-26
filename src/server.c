@@ -65,7 +65,7 @@ int main(int argc, char **argv){
 
 int setup_server(short port, int backlog){
 	int server_socket;
-	SA_IN server_addr, client_addr;
+	SA_IN server_addr;
 
 	for (int i = 0; i < THREAD_POOL_SIZE; i++){
 		pthread_create(&thread_pool[i], NULL, thread_process_connection, NULL);
@@ -185,7 +185,7 @@ void * handle_connection(void* p_client_socket) {
 
 
 void setHttpHeader(char httpHeader[]){
-	FILE *htmlData = fopen("index.html", "r");
+	FILE *htmlData = fopen("../resources/index.html", "r");
 
 	char line[100];
 	char responseData[8000];
