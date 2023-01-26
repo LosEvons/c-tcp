@@ -1,15 +1,15 @@
 CC=clang
-CFLAGS=-g
+CFLAGS=-g -Wall
 BINS=server
-OBJS=server.o myqueue.o
+OBJS=server.o myqueue.o error.o
 
 all: $(BINS)
-
-server: $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $^
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $^
 
+server: $(OBJS)
+	$(CC) $(CFLAGS) -o $@ $^
+
 clean:
-	rm -rf *.dSYM $(BINS)
+	rm -rf rm*.o *.dSYM $(BINS)

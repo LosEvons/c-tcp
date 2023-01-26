@@ -7,25 +7,16 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 #include <stdbool.h>
+#include "common.h"
 #include "myqueue.h"
-
-#define SERVER_PORT			18000
-#define BUFSIZE				4096
-#define PATH_MAX			256
-#define SOCKETERROR 		(-1)
-#define SERVER_BACKLOG		100
-#define THREAD_POOL_SIZE	20
 
 pthread_t thread_pool[THREAD_POOL_SIZE]; // Initialize threads
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER; // Initialize mutex
 pthread_cond_t condition_var = PTHREAD_COND_INITIALIZER; // Initialize condition to stop
 														//	threads in loop when asking for connection
 														//	(limits server CPU usage)
-typedef struct sockaddr_in SA_IN;
-typedef struct sockaddr SA;
 
 void * handle_connection(void *client_socket);
-int check(int ext, const char *msg);
 void * thread_process_connection(void *arg);
 int setup_server(short port, int backlog);
 int accept_new_connection(int server_socket);
@@ -192,13 +183,6 @@ void * handle_connection(void* p_client_socket) {
 	return NULL;
 }
 
-int check(int exp, const char *msg){
-	if (exp == SOCKETERROR) {
-		perror(msg);
-		exit(1);
-	}
-	return exp;
-}
 
 void setHttpHeader(char httpHeader[]){
 	FILE *htmlData = fopen("index.html", "r");
